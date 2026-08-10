@@ -46,6 +46,15 @@ cni: kindnet
 # IPv6-enabled container network (macOS 26+).
 ipFamily: ipv4
 
+# Nameserver IPs for the node VMs. The default (this key omitted) is
+# the container network gateway plus 1.1.1.1 and 8.8.8.8: the gateway
+# stays preferred while it works, and when VPN software assumes
+# control of the host's port 53 and the gateway resolver refuses
+# queries, nodes fail over to the public servers in milliseconds
+# instead of failing every image pull. Set this to take full control
+# (e.g. a corporate resolver reachable from the VMs).
+# dns: [192.168.64.1, 1.1.1.1, 8.8.8.8]
+
 # Resources per node VM. Quote cpus: YAML reads bare 4 as a number.
 cpus: "4"
 memory: 4G

@@ -118,6 +118,8 @@ type RunOpts struct {
 	Entrypoint string   // overrides the image entrypoint when non-empty
 	Kernel     string   // custom kernel Image path (--kernel), empty = bundled default
 	Args       []string // command arguments appended after the image
+	DNS        []string // nameserver IPs (--dns); empty keeps the runtime default resolv.conf
+	DNSOptions []string // resolv.conf options (--dns-option); emitted only alongside DNS
 }
 
 // RunDetached boots a node VM. The kindest/node entrypoint brings up
@@ -145,6 +147,14 @@ func (c *Client) RunDetached(o RunOpts) error {
 	}
 	for _, e := range o.Env {
 		args = append(args, "-e", e)
+	}
+	for _, d := range o.DNS {
+		args = append(args, "--dns", d)
+	}
+	if len(o.DNS) > 0 {
+		for _, opt := range o.DNSOptions {
+			args = append(args, "--dns-option", opt)
+		}
 	}
 	if o.Entrypoint != "" {
 		args = append(args, "--entrypoint", o.Entrypoint)
@@ -338,6 +348,34 @@ func (c *Client) NetworkHasIPv6(network string) (bool, error) {
 		}
 	}
 	return false, nil
+}
+
+// NetworkGateway returns the IPv4 gateway address of a container
+// network ("192.168.64.1" for vmnet's default NAT network). The guest's
+// default resolv.conf points here, so callers that construct their own
+// nameserver list need it to keep the gateway as the preferred server.
+func (c *Client) NetworkGateway(network string) (string, error) {
+	if network == "" {
+		network = "default"
+	}
+	out, err := c.run("network", "inspect", network)
+	if err != nil {
+		return "", err
+	}
+	var rows []map[string]any
+	if err := json.Unmarshal([]byte(strings.TrimSpace(out)), &rows); err != nil {
+		var one map[string]any
+		if err2 := json.Unmarshal([]byte(strings.TrimSpace(out)), &one); err2 != nil {
+			return "", fmt.Errorf("parsing network inspect output: %w", err)
+		}
+		rows = []map[string]any{one}
+	}
+	for _, row := range rows {
+		if gw := firstString(row, "status.ipv4Gateway", "ipv4Gateway", "gateway"); gw != "" {
+			return gw, nil
+		}
+	}
+	return "", fmt.Errorf("network %q reports no IPv4 gateway", network)
 }
 
 // Info is one row from `container ls`.
