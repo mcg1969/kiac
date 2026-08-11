@@ -234,6 +234,7 @@ Full guides and command reference live on the [docs site](https://saiyam1814.git
 | `--image` | resolved from `--k8s-version` | explicit node image override |
 | `--cni` | `kindnet` | pod network: `kindnet`, `cilium` (requires `--kernel full` and the `cilium` CLI on your PATH), or `none` to bring your own |
 | `--kernel` | Apple's stock kernel | `full` downloads the published kiac kernel (VXLAN, Geneve, br_netfilter, eBPF, WireGuard; sha-pinned, cached in `~/.kiac/kernels`), or pass a path to a kernel Image |
+| `--dns` | gateway, then this Mac's own DNS servers, then a public backstop | nameserver IPs for the node VMs. The default keeps the vmnet gateway first, adds whatever DNS servers this Mac is actually configured with (read straight from macOS's network settings, so internal/corporate names keep resolving), and always reserves one slot for a public resolver as a last resort — so image pulls survive VPN clients that take over the host's port 53 and break the gateway resolver |
 | `--cpus` | `4` | vCPUs per node VM |
 | `--memory` | `2G` | memory per worker VM (idle workers use a few hundred MB) |
 | `--cp-memory` | `4G` | memory for the control-plane VM (etcd, apiserver, and on single-node clusters every addon) |
