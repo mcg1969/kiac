@@ -76,6 +76,46 @@ func TestRunDetachedUsesSupportedNodeSecurityFlags(t *testing.T) {
 	}
 }
 
+func TestRunDetachedPassesDNS(t *testing.T) {
+	argsFile := filepath.Join(t.TempDir(), "args")
+	client := fakeContainerClient(t, "--cap-add\n--masked-path\n--read-only-path\n", argsFile)
+
+	err := client.RunDetached(RunOpts{
+		Name:       "kiac-test-control-plane",
+		Image:      "example.invalid/node:v1",
+		DNS:        []string{"192.168.64.1", "1.1.1.1"},
+		DNSOptions: []string{"timeout:2", "attempts:2"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got := strings.Join(readArgs(t, argsFile), " ")
+	want := "--dns 192.168.64.1 --dns 1.1.1.1 --dns-option timeout:2 --dns-option attempts:2"
+	if !strings.Contains(got, want) {
+		t.Fatalf("run args = %q, want them to contain %q", got, want)
+	}
+}
+
+func TestRunDetachedOmitsDNSWhenUnset(t *testing.T) {
+	argsFile := filepath.Join(t.TempDir(), "args")
+	client := fakeContainerClient(t, "--cap-add\n", argsFile)
+
+	// DNSOptions without DNS must not emit --dns-option either: options
+	// only make sense alongside a nameserver list.
+	err := client.RunDetached(RunOpts{
+		Name:       "kiac-test-control-plane",
+		Image:      "example.invalid/node:v1",
+		DNSOptions: []string{"timeout:2"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(readArgs(t, argsFile), " "); strings.Contains(got, "--dns") {
+		t.Fatalf("run args = %q, want no --dns flags", got)
+	}
+}
+
 func TestRunDetachedOmitsUnsupportedNodeSecurityFlags(t *testing.T) {
 	argsFile := filepath.Join(t.TempDir(), "args")
 	client := fakeContainerClient(t, "--cap-add\n", argsFile)
